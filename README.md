@@ -23,3 +23,6 @@
 ### 참고 자료
 https://kamang-it.tistory.com/entry/NodeJSSocketIOSocketIO-%EB%A9%80%ED%8B%B0-%ED%86%B5%EC%8B%A0-%EB%8B%A4%EC%A4%91-%ED%86%B5%EC%8B%A0-serverclient-2?category=746442
 https://victorydntmd.tistory.com/48
+https://www.csvjson.com/json_beautifier
+https://www.webdesignrankings.com/resources/lolcolors/
+https://poiemaweb.com/nodejs-mysql
