@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="http://supreme5876.dothome.co.kr/style.css">
+    <style>
+
+    </style>
+    <title>Democracy Community</title>
+</head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script type="text/javascript">
+   
+    
+    var socket = io.connect('http://localhost:3000');
+    socket.emit('joinRoom', {roomName: 'main'});
+
+    var title;
+    var curIdx;
+    var candLength;
+
+    var curPageNum=1;
+    var curResult=0;
+
+    socket.emit("cli_curInfo", {});
+    socket.on('ser_curInfo', function (data) {
+        curIdx = data.curIdx
+        title = data.title;
+        candLength = data.candLength;
+        socket.emit("cli_candArr", {idx: curIdx});
+        socket.emit("cli_board", {idx: curIdx, result : 0,pagenum: 1});
+        showTabs();
+    });
+    socket.on('ser_candArr', function (data) {
+        arr = data.result;
+        showCandList(arr);
+    });
+    socket.on('ser_curIdx', function (data) {
+        curIdx = data.result;
+        socket.emit("cli_title", {idx: curIdx});
+        
+    });
+    socket.on('ser_board', function (data) {
+        var result = data.result;
+        var arr = data.arr;
+        showBoard(result,arr);       
+    });
+    socket.on('ser_boardRefresh', function (data) {
+        socket.emit('cli_board', {idx: curIdx, result : curResult, pagenum: curPageNum});
+    });
+    socket.on('ser_candRefresh', function (data) {
+        socket.emit('cli_candArr', {idx: curIdx, result : curResult, pagenum: curPageNum});
+    });
+
+
+
+
+    function showCandList(arr){
+    //타이틀 설정
+    document.getElementById("title").innerHTML = curIdx+": "+title;
+	var table=document.getElementById("candList");
+		var total = 0;
+		for(var i=0;i<arr.length;i++){
+			total = total + arr[i].score*1;
+		}
+		for(var i=0;i<arr.length;i++){
+			var candidate = arr[i].string;
+			var score = arr[i].score;
+			var row=table.insertRow();
+			var cell0=row.insertCell(0);
+            var cell1=row.insertCell(1);
+            var cell2=row.insertCell(2);
+            cell0.innerHTML = i;
+            cell1.innerHTML = candidate;
+			cell2.innerHTML = score + " ("+(score*100/total)+"%)";
+        }
+    }
+    
+    function showBoard(result, arr){
+        var _result = result*1 +1
+        var sectionTag=document.getElementById("content"+_result);
+        sectionTag.removeChild(document.getElementById('board'+result));
+        var table = document.createElement('table');
+        sectionTag.appendChild(table);
+        table.id="board"+result;
+        var topRow = table.insertRow();
+        th0 = document.createElement('th');
+        th1 = document.createElement('th');
+        th2 = document.createElement('th');
+        th3 = document.createElement('th');
+        th0.innerHTML = "작성자";         th1.innerHTML = "내용";
+        th2.innerHTML = "UP";        th3.innerHTML = "Down";
+        topRow.appendChild(th0);        topRow.appendChild(th1);
+        topRow.appendChild(th2);        topRow.appendChild(th3);
+        var i;
+        for(i=0;i<arr.length;i++){
+            var temp = new Object();
+            temp.num = arr[i].num
+			var row=table.insertRow();
+			var cell0=row.insertCell(0);
+            var cell1=row.insertCell(1);
+            var cell2=row.insertCell(2);
+            var cell3=row.insertCell(3);
+
+            upButton = document.createElement('input');
+            downButton = document.createElement('input');
+            cell0.innerHTML = arr[i].writer;
+            cell1.innerHTML = arr[i].content;
+            cell2.innerHTML = arr[i].up+"   "+"<input type=button value='Up!' onclick='upEvent("+arr[i].num+")'>";
+            cell3.innerHTML = arr[i].down+" "+"<input type=button value='Down!' onclick='downEvent("+arr[i].num+")'>";
+
+        }
+        if(i==0){
+            var row=table.insertRow();
+            var cell0=row.insertCell(0);
+            cell0.colSpan=4;
+            cell0.innerHTML = '더 이상 글이 없습니다.';
+        }
+    }
+
+        function showTabs(){
+        var count = candLength;
+        for(var i=1; i<=10;i++){
+        if(i>count){
+            document.getElementById('tablabel'+i).style.display = "none";
+        }
+        else{
+            document.getElementById("tablabel"+i).style.display="inline-block";
+            }
+        }
+    }
+    function goNextPage(){
+        curPageNum++;
+        socket.emit('cli_board', {idx: curIdx, result : curResult, pagenum: curPageNum});
+    }
+    function goPrevPage(){
+        if(curPageNum > 1){
+            curPageNum--;
+            socket.emit('cli_board', {idx: curIdx, result : curResult, pagenum: curPageNum});
+        }
+        else{
+            alert('이전 페이지가 없습니다.')
+        }
+    }
+    function changeTab(_result){
+        socket.emit('cli_board', {idx: curIdx, result : _result, pagenum:1});
+        curPageNum = 1;
+        curResult = _result;
+    }
+    function upEvent(_num){
+        socket.emit('cli_boardUp', {num: _num});
+    }
+    function downEvent(_num){
+        socket.emit('cli_boardDown', {num: _num});
+    }
+
+    function addComment(){
+        var _content = document.getElementById('comment').value;
+        socket.emit('cli_boardPost', {idx: 1, content: _content});
+       _content = "";
+    }
+    function addCand(){
+        var _candString = document.getElementById('addCandString').value;
+        socket.emit('cli_addCand', {candString: _candString});
+        _candString = "";
+
+    }
+   
+</script>
+<body>
+<h1 id='title'>Democracy Community</h1>
+
+<div class="main">
+    <div class='part'>
+        <table id="candList">
+                <th scope="cols">후보 번호</th> <th scope="cols">후보 목록</th>		<th scope="cols"	>득표 수</th>
+        </table></div>
+    <div class='part'><table>
+        <tr>
+            <td><select id="candSel"></select> 	<button class="btn-2" onClick="vote()">투표하기</button></td>
+            <td><input type="text" id="addCandString"><button onClick="addCand()">후보 추가하기</button></td>
+        </tr>
+    </table></div>
+
+    <div class='part'>
+            <input class ='tabs' id="tab1" type="radio" name="tabs" checked > <!--디폴트 메뉴-->
+            <label class='tablabels' id="tablabel1" for="tab1" onclick="changeTab(0)">0번</label>
+            <input class ='tabs' id="tab2" type="radio" name="tabs">
+            <label class='tablabels' id="tablabel2" for="tab2" onclick="changeTab(1)">1번</label>
+            <input class ='tabs' id="tab3" type="radio" name="tabs">
+            <label class='tablabels' id="tablabel3" for="tab3" onclick="changeTab(2)">2번</label>
+            <input class ='tabs' id="tab4" type="radio" name="tabs">
+            <label class='tablabels' id="tablabel4" for="tab4" onclick="changeTab(3)">3번</label>
+            <input class ='tabs' id="tab5" type="radio" name="tabs">
+            <label class='tablabels' id="tablabel5" for="tab5" onclick="changeTab(4)">4번</label>
+            <input class ='tabs' id="tab6" type="radio" name="tabs">
+            <label class='tablabels' id="tablabel6" for="tab6" onclick="changeTab(5)">5번</label>
+            <input class ='tabs' id="tab7" type="radio" name="tabs">
+            <label class='tablabels' id="tablabel7" for="tab7" onclick="changeTab(6)">6번</label>
+            <input class ='tabs' id="tab8" type="radio" name="tabs">
+            <label class='tablabels' id="tablabel8" for="tab8" onclick="changeTab(7)">7번</label>
+            <input class ='tabs' id="tab9" type="radio" name="tabs">
+            <label class='tablabels' id="tablabel9" for="tab9" onclick="changeTab(8)">8번</label>
+            <input class ='tabs' id="tab10" type="radio" name="tabs">
+            <label class='tablabels' id="tablabel10" for="tab10" onclick="changeTab(9)">9번</label>
+
+            <section id="content1">
+                    <table id="board0"><th scope="cols">작성자</th> <th scope="cols">내용</th>	<th scope="cols">UP</th> <th scope="cols">DOWN</th></table>
+            </section>
+
+            <section id="content2">
+                    <table id="board1"><th scope="cols">작성자</th> <th scope="cols">내용</th>	<th scope="cols">UP</th> <th scope="cols">DOWN</th></table>
+            </section>
+
+            <section id="content3">
+                    <table id="board2"><th scope="cols">작성자</th> <th scope="cols">내용</th>	<th scope="cols">UP</th> <th scope="cols">DOWN</th></table>
+            </section>
+
+            <section id="content4">
+                    <table id="board3"><th scope="cols">작성자</th> <th scope="cols">내용</th>	<th scope="cols">UP</th> <th scope="cols">DOWN</th></table>
+            </section>
+
+            <section id="content5">
+                    <table id="board4"><th scope="cols">작성자</th> <th scope="cols">내용</th>	<th scope="cols">UP</th> <th scope="cols">DOWN</th></table>
+            </section>
+
+            <section id="content6">
+                    <table id="board5"><th scope="cols">작성자</th> <th scope="cols">내용</th>	<th scope="cols">UP</th> <th scope="cols">DOWN</th></table>
+            </section>
+
+            <section id="content7">
+                    <table id="board6"><th scope="cols">작성자</th> <th scope="cols">내용</th>	<th scope="cols">UP</th> <th scope="cols">DOWN</th></table>
+            </section>
+
+            <section id="content8">
+                    <table id="board7"><th scope="cols">작성자</th> <th scope="cols">내용</th>	<th scope="cols">UP</th> <th scope="cols">DOWN</th></table>
+            </section>
+
+            <section id="content9">
+                    <table id="board8"><th scope="cols">작성자</th> <th scope="cols">내용</th>	<th scope="cols">UP</th> <th scope="cols">DOWN</th></table>
+            </section>
+
+            <section id="content10">
+                    <table id="board9"><th scope="cols">작성자</th> <th scope="cols">내용</th>	<th scope="cols">UP</th> <th scope="cols">DOWN</th></table>
+            </section>
+
+            
+                <table>
+                    <tr>
+                        <td><input type='button' onclick='goPrevPage()' value='이전' ></td>
+                        <td><input type='button' onclick = 'goNextPage()' value = '다음'></td>
+                    </tr>
+                </table>
+            
+            
+            <div class='part'><table>
+                    <tr>
+                        <td><input type="text" id="comment"><button onClick="addComment()">의견 추가하기</button></td>
+                    </tr>
+            </table></div>
+    </div>
+
+    
+                
+
+</div>
+</body>
+<script>
+</script>
+</html>
